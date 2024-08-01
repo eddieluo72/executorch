@@ -392,9 +392,8 @@ class PerChannelQuant:
 
 @dataclass
 class PerChannelGroupQuant:
-    scale_bf16: List[int]
+    scale: List[float]
     channel_dim: int
-    scale: List[float] = None
     group_size: int = 1
 
 
