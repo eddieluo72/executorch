@@ -147,6 +147,7 @@ class TestQNNFloatingPointOperator(TestQNN):
 
     def test_qnn_backend_element_wise_div(self):
         eps = 1e-03
+        torch.manual_seed(8)
         test_comb = [
             {
                 QCOM_MODULE: [Div()],  # noqa: F405
@@ -254,6 +255,19 @@ class TestQNNFloatingPointOperator(TestQNN):
     def test_qnn_backend_hardtanh(self):
         module = HardTanh()  # noqa: F405
         sample_input = (torch.randn([2, 5, 1, 3]),)
+        self.lower_module_and_test_output(module, sample_input)
+
+    def test_qnn_backend_index(self):
+        module = Index()  # noqa: F405
+        sample_input = (torch.randn([8, 172, 64]),)
+        self.lower_module_and_test_output(module, sample_input)
+
+    def test_qnn_backend_index_put(self):
+        module = IndexPut()  # noqa: F405
+        sample_input = (
+            torch.tensor([2], dtype=torch.int32),
+            torch.randn([1, 1, 12, 64]),
+        )
         self.lower_module_and_test_output(module, sample_input)
 
     def test_qnn_backend_interpolate_bilinear_2d(self):
@@ -708,6 +722,7 @@ class TestQNNQuantizedOperator(TestQNN):
 
     def test_qnn_backend_element_wise_div(self):
         eps = 1e-03
+        torch.manual_seed(8)
         test_comb = [
             {
                 QCOM_MODULE: [Div()],  # noqa: F405
@@ -824,6 +839,21 @@ class TestQNNQuantizedOperator(TestQNN):
     def test_qnn_backend_hardtanh(self):
         module = HardTanh()  # noqa: F405
         sample_input = (torch.randn([2, 5, 1, 3]),)
+        module = self.get_qdq_module(module, sample_input)
+        self.lower_module_and_test_output(module, sample_input)
+
+    def test_qnn_backend_index(self):
+        module = Index()  # noqa: F405
+        sample_input = (torch.randn([8, 172, 64]),)
+        module = self.get_qdq_module(module, sample_input)
+        self.lower_module_and_test_output(module, sample_input)
+
+    def test_qnn_backend_index_put(self):
+        module = IndexPut()  # noqa: F405
+        sample_input = (
+            torch.tensor([2], dtype=torch.int32),
+            torch.randn([1, 1, 12, 64]),
+        )
         module = self.get_qdq_module(module, sample_input)
         self.lower_module_and_test_output(module, sample_input)
 
@@ -1295,7 +1325,6 @@ class TestQNNFloatingPointUtils(TestQNN):
         exec_prog = edge_prog.to_executorch()
         self.verify_output(module.get_reference_module(), sample_input, exec_prog)
 
-    @unittest.expectedFailure
     def test_qnn_backend_profile_op(self):
         TestQNN.enable_profile = True
         backend_options = generate_htp_compiler_spec(use_fp16=True)
@@ -1310,7 +1339,7 @@ class TestQNNFloatingPointUtils(TestQNN):
             module,
             sample_input,
             expected_partitions=1,
-            expected_profile_events=25,
+            expected_profile_events=24,
         )
 
     def test_qnn_backend_shared_buffer(self):
@@ -1460,7 +1489,6 @@ class TestQNNQuantizedUtils(TestQNN):
         exec_prog = edge_prog.to_executorch()
         self.verify_output(module.get_reference_module(), sample_input, exec_prog)
 
-    @unittest.expectedFailure
     def test_qnn_backend_profile_op(self):
         TestQNN.enable_profile = True
         backend_options = generate_htp_compiler_spec(use_fp16=False)
@@ -1476,7 +1504,7 @@ class TestQNNQuantizedUtils(TestQNN):
             module,
             sample_input,
             expected_partitions=1,
-            expected_profile_events=26,
+            expected_profile_events=25,
         )
 
     def test_qnn_backend_shared_buffer(self):
@@ -2260,6 +2288,12 @@ def setup_environment():
         help="Path to open source software model repository",
         type=str,
     )
+    parser.add_argument(
+        "-x",
+        "--enable_x86_64",
+        help="Enable unittest to be executed on x86_64 platform",
+        action="store_true",
+    )
 
     args, ns_args = parser.parse_known_args(namespace=unittest)
     TestQNN.host = args.host
@@ -2276,6 +2310,7 @@ def setup_environment():
     TestQNN.error_only = args.error_only
     TestQNN.oss_repo = args.oss_repo
     TestQNN.shared_buffer = args.shared_buffer
+    TestQNN.enable_x86_64 = args.enable_x86_64
     return sys.argv[:1] + ns_args
 
 
